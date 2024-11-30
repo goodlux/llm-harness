@@ -1,0 +1,36 @@
+# .gitignore
+# Config files
+config/api_keys.yaml
+config/models.yaml
+
+# IDE specific
+.zed/
+.ropeproject/
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Results and logs
+results/
+logs/

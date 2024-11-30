@@ -1,0 +1,26 @@
+## Example file for describing models.
+models:
+  "claude-3-opus": # unique friendly model name, can be whatever the user wants
+    provider: anthropic # liteLLM provider name
+    connection_string: "claude-3-opus-20240229" # liteLLM connection string
+    description: "Most capable Claude 3 model" # description is optional
+
+  "gpt-4":
+    provider: openai
+    connection_string: "gpt-4"
+    description: "Latest GPT-4 model" # description is optional
+
+  "gemini-pro":
+    provider: google
+    connection_string: "gemini-pro"
+    description: "Google's Gemini Pro model" # description is optional
+
+  "mistral-large":
+    provider: mistral
+    connection_string: "mistral-large-2407"
+    description: "Mistral's large model" # description is optional
+
+  "hermes-mixtral-8x7B-DPO":
+    provider: together
+    connection_string: "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"
+    description: "Hermes 2 on Mixtral architecture" # description is optional
