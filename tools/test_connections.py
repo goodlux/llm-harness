@@ -4,19 +4,27 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 from typing import Dict, Any
+from pathlib import Path
 
 console = Console()
+
+def load_config(filename: str) -> Dict[str, Any]:
+    """Load configuration file using relative path"""
+    try:
+        config_path = Path(__file__).parent.parent / "config" / filename
+        with open(config_path, 'r') as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError as e:
+        console.print(f"[red]Error loading {filename}: {str(e)}")
+        return {}
 
 async def test_connections():
     """Test connections to all configured models"""
     harness = LLMHarness()
 
     # Load configurations
-    with open("config/models.yaml", 'r') as f:
-        models_config = yaml.safe_load(f).get('models', {})
-
-    with open("config/providers.yaml", 'r') as f:
-        providers_config = yaml.safe_load(f).get('providers', {})
+    models_config = load_config('models.yaml').get('models', {})
+    providers_config = load_config('providers.yaml').get('providers', {})
 
     # Create results table
     table = Table(title="Model Connection Test Results")
@@ -73,8 +81,7 @@ async def main():
     console.print("====================================\n")
 
     # Load model configurations
-    with open("config/models.yaml", 'r') as f:
-        models_config = yaml.safe_load(f).get('models', {})
+    models_config = load_config('models.yaml').get('models', {})
 
     # Group models by provider
     grouped_models = group_models_by_provider(models_config)

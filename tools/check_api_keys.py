@@ -3,17 +3,21 @@ import os
 from typing import Dict, Any
 from rich.console import Console
 from rich.table import Table
+import yaml
+from pathlib import Path
 
 console = Console()
 
-def load_provider_config(config_path: str = "config/providers.yaml") -> Dict[str, Any]:
+def load_provider_config() -> Dict[str, Any]:
     """Load provider configuration file"""
     try:
+        # Always look two directories up, then into config
+        config_path = Path(__file__).parent.parent / "config" / "providers.yaml"
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
             return config.get('providers', {})
-    except FileNotFoundError:
-        console.print(f"[red]Provider config not found: {config_path}")
+    except FileNotFoundError as e:
+        console.print(f"[red]Provider config not found: {e}")
         return {}
 
 def check_api_keys():
