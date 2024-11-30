@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional, TypedDict, cast
-import litellm  # If you're getting a red squiggle, might need to run: pip install litellm
+import litellm
 import yaml
 import os
 from datetime import datetime
@@ -10,6 +10,7 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
+
 class ProbeResult(TypedDict):
     """Type definition for probe results"""
     response: str
@@ -19,18 +20,56 @@ class ProbeResult(TypedDict):
 class LLMHarness:
     """Harness for running probes across multiple LLM models"""
 
-    VALID_PROVIDERS = {
-        'openai': 'OPENAI_API_KEY',
-        'anthropic': 'ANTHROPIC_API_KEY',
-        'mistral': 'MISTRAL_API_KEY',  # Changed from mistral-ai to match api_keys.yaml
-        'google': 'GOOGLE_API_KEY',
-        'together': 'TOGETHER_API_KEY'
+    # Default parameters for all models unless overridden
+    DEFAULT_PARAMS = {
+        # Core parameters
+        "temperature": 0,        # Controls randomness (0-2). Lower is more deterministic
+        "max_tokens": None,      # Maximum number of tokens to generate
+        "top_p": None,          # Nucleus sampling threshold (0-1)
+        "top_k": None,          # Limits vocabulary to top k tokens
+
+        # Advanced generation parameters
+        "presence_penalty": None,    # Penalizes repeated tokens (-2 to 2)
+        "frequency_penalty": None,   # Penalizes frequent tokens (-2 to 2)
+        "repetition_penalty": None,  # Specific penalty for token repetition
+        "min_p": None,              # Minimum probability threshold for tokens
+
+        # Context and length control
+        "max_retries": None,        # Maximum number of retry attempts
+        "context_window": None,     # Maximum context window size
+        "timeout": None,            # Request timeout in seconds
+
+        # Response formatting
+        "response_format": None,    # Specify response format (e.g., "json")
+        "seed": None,               # Random seed for reproducibility
+        "tools": None,              # Available tools/functions for the model
+        "tool_choice": None,        # Specific tool to use
+        "functions": None,          # Available functions (OpenAI format)
+
+        # Stream and processing
+        "stream": None,             # Enable streaming responses
+        "stop": None,               # Custom stop sequences
+        "logit_bias": None,         # Token biasing dictionary
+
+        # Model-specific parameters
+        "top_k_return": None,       # Number of responses to return
+        "prompt_template": None,    # Custom prompt template
+        "roles": None,              # Custom role names for messages
+
+        # Azure specific
+        "engine": None,             # Azure deployment name
+        "api_version": None,        # API version for Azure
+
+        # Additional controls
+        "request_timeout": None,    # Timeout for individual requests
+        "validate_response": None,  # Enable response validation
+        "num_retries": None,        # Number of retries on failure
     }
 
-    def __init__(self, config_path: str = "config/models.yaml", api_keys_path: str = "config/api_keys.yaml"):
-        """Initialize harness with model and API configurations"""
+    def __init__(self, config_path: str = "config/models.yaml", providers_path: str = "config/providers.yaml"):
+        """Initialize harness with model and provider configurations"""
         self.config = self._load_config(config_path)
-        self.api_keys = self._load_api_keys(api_keys_path)
+        self.providers = self._load_providers(providers_path)
 
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load model configurations from YAML file"""
@@ -42,33 +81,22 @@ class LLMHarness:
             logger.error(f"Model config file not found: {config_path}")
             return {"models": {}}
 
-    def _load_api_keys(self, config_path: str) -> Dict[str, str]:
-        """Load API keys from configuration file"""
+    def _load_providers(self, config_path: str) -> Dict[str, Any]:
+        """Load provider configurations including API keys"""
         try:
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
-                return {
-                    provider: details['key']
-                    for provider, details in config['api_keys'].items()
-                }
+                return config.get('providers', {})
         except FileNotFoundError:
-            logger.error(f"API keys configuration file not found: {config_path}")
-            return {}
-        except Exception as e:
-            logger.error(f"Error loading API keys: {str(e)}")
+            logger.error(f"Provider config not found: {config_path}")
             return {}
 
     def validate_provider(self, provider: str) -> bool:
         """Validate provider configuration"""
-        if provider not in self.VALID_PROVIDERS:
+        if provider not in self.providers:
             logger.error(f"Invalid provider: {provider}")
-            logger.info(f"Valid providers are: {list(self.VALID_PROVIDERS.keys())}")
+            logger.info(f"Valid providers are: {list(self.providers.keys())}")
             return False
-
-        if provider not in self.api_keys:
-            logger.error(f"No API key found for provider: {provider}")
-            return False
-
         return True
 
     @staticmethod
@@ -125,27 +153,72 @@ class LLMHarness:
         if models is None:
             models = list(self.config["models"].keys())
 
+        logger.info("Starting run_probe")
+        logger.info(f"Loaded config: {self.config}")
+        logger.info(f"Loaded providers: {self.providers}")
+
         results: Dict[str, ProbeResult] = {}
         for model_id in models:
             try:
-                model_config = self.config["models"][model_id]
-                provider = model_config["provider"]
-                connection_string = model_config["connection_string"]
+                logger.info(f"\nProcessing model: {model_id}")
 
-                logger.info(f"Attempting {model_id} call:")
+                model_config = self.config["models"][model_id]
+                logger.info(f"Model config: {model_config}")
+
+                provider = model_config["provider"]
                 logger.info(f"Provider: {provider}")
-                logger.info(f"Connection string: {connection_string}")
+
+                model_identifier = model_config["model_id"]
+                logger.info(f"Model identifier: {model_identifier}")
 
                 if not self.validate_provider(provider):
                     raise ValueError(f"Invalid or unconfigured provider: {provider}")
 
-                api_key = self.api_keys[provider]
-                response = await litellm.acompletion(
-                    model=connection_string,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0,
-                    api_key=api_key
-                )
+                provider_config = self.providers[provider]
+                logger.info(f"Provider config: {provider_config}")
+
+                format_string = provider_config.get('format', '{model_id}')
+                logger.info(f"Format string: {format_string}")
+
+                try:
+                    full_model_string = format_string.format(model_id=model_identifier)
+                    logger.info(f"Built full model string: {full_model_string}")
+                except Exception as e:
+                    logger.error(f"Error formatting model string: {e}")
+                    raise
+
+                completion_params = {
+                    "model": full_model_string,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "api_key": provider_config["api_key"]
+                }
+                logger.info(f"Built completion params (excluding api_key): {dict(model=completion_params['model'])}")
+
+                try:
+                    response = await litellm.acompletion(**completion_params)
+                    logger.info("Got response from litellm")
+                except Exception as e:
+                    logger.error(f"Error in litellm call: {e}")
+                    raise
+
+                # ... rest of the code
+
+
+                # Add default params unless null
+                for param, default_value in self.DEFAULT_PARAMS.items():
+                    if default_value is not None:
+                        completion_params[param] = default_value
+
+                # Override with any model-specific params
+                model_params = model_config.get('params', {})
+                for param, value in model_params.items():
+                    if value is not None:
+                        completion_params[param] = value
+                    elif param in completion_params:
+                        # If model explicitly sets param to null, remove it
+                        del completion_params[param]
+
+                response = await litellm.acompletion(**completion_params)
 
                 content = self._extract_content(response)
                 model_name = str(getattr(response, 'model', model_id))

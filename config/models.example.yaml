@@ -1,26 +1,55 @@
-## Example file for describing models.
+## LiteLLM offers a lot of flexiblity, so the options for specifying models can be extensive.
+## We provide some examples here, and this format should support all options available.
+## If in doubt, check the docs here:
+##
+## https://docs.litellm.ai/docs/providers
+##
+## The full list of DEFAULT_PARAMS that can be set/overridden is found in
+## src/llm_harness/harness.py
+##
 models:
-  "claude-3-opus": # unique friendly model name, can be whatever the user wants
-    provider: anthropic # liteLLM provider name
-    connection_string: "claude-3-opus-20240229" # liteLLM connection string
-    description: "Most capable Claude 3 model" # description is optional
+  # Standard model with defaults
+  "claude-opus": # friendly name, decided by the user, but must be unique
+    provider: "anthropic" # provider name, from providers.yaml
+    model_id: "claude-3-opus-20240229" # model id, specfic to the provider
+    description: "Claude 3 Opus model" # description is optional
 
-  "gpt-4":
-    provider: openai
-    connection_string: "gpt-4"
-    description: "Latest GPT-4 model" # description is optional
+  # Model that doesn't support temperature (OpenAI o1-mini)
+  "o1-mini":
+    provider: "openai"
+    model_id: "o1-mini"
+    description: "OpenAI O1-mini model"
+    params:
+      temperature: null # some models require specific parameters, like temperature (default: 0)
 
-  "gemini-pro":
-    provider: google
-    connection_string: "gemini-pro"
-    description: "Google's Gemini Pro model" # description is optional
+  # Model with custom parameters
+  "custom-model":
+    provider: "openai"
+    model_id: "gpt-4"
+    description: "GPT-4 with custom settings"
+    params:
+      temperature: 0.7 # in most cases, params are optional, but can be provided when desired
+      max_tokens: 1000
+      top_p: 0.95
+      presence_penalty: 0.5
+      frequency_penalty: 0.5
 
-  "mistral-large":
-    provider: mistral
-    connection_string: "mistral-large-2407"
-    description: "Mistral's large model" # description is optional
+  # Azure-hosted OpenAI model
+  "azure-gpt4":
+    provider: "azure"
+    model_id: "gpt-4-deployment"
+    description: "GPT-4 hosted on Azure"
+    params:
+      engine: "deployment-name"
 
-  "hermes-mixtral-8x7B-DPO":
-    provider: together
-    connection_string: "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"
-    description: "Hermes 2 on Mixtral architecture" # description is optional
+  # Model with specific version
+  "mixtral-8x7b":
+    provider: "together"
+    model_id: "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO" # some models have tricky model ids
+    description: "Specific version of Mixtral"
+
+  # Replicate model with specific version hash
+  "llama-2":
+    provider: "replicate"
+    model_id: "meta/llama-2-70b-chat:02e509c789964a7ea8736978a43525956ef40397be9033abf9fd2badfe68c9e3"
+    description: "Llama 2 with specific version hash"

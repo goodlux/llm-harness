@@ -1,75 +1,25 @@
 models:
-  "claude-sonnet":
-    provider: anthropic
-    connection_string: "claude-3-5-sonnet-20240620"
-    description: "Claude 3 Sonnet model"
-
   "claude-opus":
-    provider: anthropic
-    connection_string: "claude-3-opus-20240229"
+    provider: "anthropic"
+    model_id: "claude-3-opus-20240229"
     description: "Claude 3 Opus model"
 
-  "claude-2":
-    provider: anthropic
-    connection_string: "claude-2.1"
-    description: "Claude 2.1 model"
-
-  "claude-haiku":
-    provider: anthropic
-    connection_string: "claude-3-haiku-20240307"
-    description: "Claude 3 Haiku model"
+  "claude-sonnet":
+    provider: "anthropic"
+    model_id: "claude-3-sonnet-20240229"
+    description: "Claude 3 Sonnet model"
 
   "gpt-4":
-    provider: openai
-    connection_string: "gpt-4"
+    provider: "openai"
+    model_id: "gpt-4"
     description: "GPT-4 model"
 
-  "gpt-3.5":
-    provider: openai
-    connection_string: "gpt-3.5-turbo-1106"
-    description: "GPT-3.5 Turbo model"
-
-  "o1-mini":
-    provider: openai
-    connection_string: "o1-mini"
-    description: "O1 Mini model"
-
   "gemini-pro":
-    provider: google
-    connection_string: "google/gemini-pro"
-    description: "Gemini Pro model"
-
-  "mistral-medium":
-    provider: mistral
-    connection_string: "mistral-medium"
-    description: "Mistral medium model"
+    provider: "google"
+    model_id: "gemini-pro"
+    description: "Google's Gemini Pro model"
 
   "mistral-large":
-    provider: mistral
-    connection_string: "mistral-large-2407"
-    description: "Mistral large model"
-
-  "mixtral-8x22b":
-    provider: mistral
-    connection_string: "open-mixtral-8x22b"
-    description: "Mixtral 8x22B model"
-
-  "mistral-nemo":
-    provider: mistral
-    connection_string: "open-mistral-nemo"
-    description: "Mistral Nemo model"
-
-  "hermes-mixtral":
-    provider: together
-    connection_string: "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"
-    description: "Hermes 2 on Mixtral architecture"
-
-  "hermes-2":
-    provider: together
-    connection_string: "hermes-2"
-    description: "Hermes 2 model"
-
-  "tiny-llama":
-    provider: together
-    connection_string: "tinyllama-1.1b-chat"
-    description: "Tiny Llama model"
+    provider: "mistral"
+    model_id: "mistral-large-2407"
+    description: "Mistral's large model"

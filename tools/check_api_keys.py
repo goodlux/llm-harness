@@ -1,83 +1,44 @@
-# tools/check_api_keys.py
 import yaml
-from pathlib import Path
+import os
+from typing import Dict, Any
+from rich.console import Console
+from rich.table import Table
 
-# ANSI color codes
-class Colors:
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+console = Console()
 
-def load_api_keys():
-    """Load API keys from config/api_keys.yaml"""
-    config_path = Path(__file__).parent.parent / "config" / "api_keys.yaml"
-
-    if not config_path.exists():
-        print(f"\n{Colors.RED}❌ Config file not found: {config_path}{Colors.END}")
-        print("Please copy config/api_keys.yaml.example to config/api_keys.yaml and add your keys")
+def load_provider_config(config_path: str = "config/providers.yaml") -> Dict[str, Any]:
+    """Load provider configuration file"""
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            return config.get('providers', {})
+    except FileNotFoundError:
+        console.print(f"[red]Provider config not found: {config_path}")
         return {}
 
-    with open(config_path) as f:
-        return yaml.safe_load(f)["api_keys"]
-
 def check_api_keys():
-    """Check for presence of API keys in config"""
-    print(f"\n{Colors.BOLD}Checking API Keys in config/api_keys.yaml:{Colors.END}")
-    print("=====================================")
+    """Check if API keys are configured properly"""
+    providers = load_provider_config()
 
-    config = load_api_keys()
-    found_keys = []
-    missing_keys = []
-    default_keys = []
+    table = Table(title="Provider API Key Status")
+    table.add_column("Provider", style="cyan")
+    table.add_column("Key Info", style="green")
+    table.add_column("Status", style="yellow")
 
-    # Calculate maximum lengths for alignment
-    max_provider_len = max(len(provider) for provider in config.keys())
-    max_env_var_len = max(len(details['env_var']) for details in config.values())
-
-    for provider, details in config.items():
-        key = details['key']
-        env_var = details['env_var']
-
-        # Format provider name with consistent spacing
-        provider_fmt = f"{provider:<{max_provider_len}}"
-
-        if key == f"default_{provider}_key_replace_me":
-            default_keys.append(
-                f"{Colors.YELLOW}⚠️  {provider_fmt}  │  {env_var:<{max_env_var_len}}  │  (default key, needs replacement){Colors.END}"
-            )
-        elif key:
-            key_preview = f"{key[:4]}...{key[-4:]}"
-            found_keys.append(
-                f"{Colors.GREEN}✅  {provider_fmt}  │  {env_var:<{max_env_var_len}}  │  key: {key_preview}{Colors.END}"
-            )
+    for provider, config in providers.items():
+        api_key = config.get('api_key', '')
+        if not api_key or api_key.startswith('default_'):
+            status = "❌ Not configured"
+            key_info = "Missing or default key"
         else:
-            missing_keys.append(
-                f"{Colors.RED}❌  {provider_fmt}  │  {env_var:<{max_env_var_len}}  │  (key not found){Colors.END}"
-            )
+            status = "✅ Configured"
+            # Show first/last few chars of key
+            key_info = f"key: {api_key[:3]}...{api_key[-4:]}"
 
-    if found_keys:
-        print(f"\n{Colors.BLUE}Valid Keys:{Colors.END}")
-        print(f"{Colors.BOLD}Provider      │  Environment Variable     │  Key Info{Colors.END}")
-        print("─" * 65)
-        for key in found_keys:
-            print(key)
+        table.add_row(provider, key_info, status)
 
-    if default_keys:
-        print(f"\n{Colors.BLUE}Default Keys (need replacement):{Colors.END}")
-        print(f"{Colors.BOLD}Provider      │  Environment Variable     │  Status{Colors.END}")
-        print("─" * 65)
-        for key in default_keys:
-            print(key)
-
-    if missing_keys:
-        print(f"\n{Colors.BLUE}Missing Keys:{Colors.END}")
-        print(f"{Colors.BOLD}Provider      │  Environment Variable     │  Status{Colors.END}")
-        print("─" * 65)
-        for key in missing_keys:
-            print(key)
+    console.print(table)
 
 if __name__ == "__main__":
+    console.print("\nChecking Provider API Keys...")
     check_api_keys()

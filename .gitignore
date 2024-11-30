@@ -1,6 +1,6 @@
 # .gitignore
 # Config files
-config/api_keys.yaml
+config/providers.yaml
 config/models.yaml
 
 # IDE specific
