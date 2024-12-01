@@ -1,5 +1,5 @@
 import asyncio
-from llm_harness.harness import LLMHarness
+from llmharness import LLMHarness
 import yaml
 from rich.console import Console
 from rich.table import Table
@@ -11,6 +11,7 @@ console = Console()
 def load_config(filename: str) -> Dict[str, Any]:
     """Load configuration file using relative path"""
     try:
+        # Adjust path to look in parent directory's config folder
         config_path = Path(__file__).parent.parent / "config" / filename
         with open(config_path, 'r') as f:
             return yaml.safe_load(f)

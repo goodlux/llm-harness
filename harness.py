@@ -7,8 +7,14 @@ import json
 from litellm.utils import ModelResponse, StreamingChoices, Message
 import logging
 import asyncio
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Define the config directory relative to harness.py
+CONFIG_DIR = Path(__file__).parent.parent.parent / "config"
+
+
 
 
 class ProbeResult(TypedDict):
@@ -66,12 +72,12 @@ class LLMHarness:
         "num_retries": None,        # Number of retries on failure
     }
 
-    def __init__(self, config_path: str = "config/models.yaml", providers_path: str = "config/providers.yaml"):
+    def __init__(self):
         """Initialize harness with model and provider configurations"""
-        self.config = self._load_config(config_path)
-        self.providers = self._load_providers(providers_path)
+        self.config = self._load_config(CONFIG_DIR / "models.yaml")
+        self.providers = self._load_providers(CONFIG_DIR / "providers.yaml")
 
-    def _load_config(self, config_path: str) -> Dict[str, Any]:
+    def _load_config(self, config_path: str | Path) -> Dict[str, Any]:
         """Load model configurations from YAML file"""
         try:
             with open(config_path, 'r') as f:
@@ -81,7 +87,7 @@ class LLMHarness:
             logger.error(f"Model config file not found: {config_path}")
             return {"models": {}}
 
-    def _load_providers(self, config_path: str) -> Dict[str, Any]:
+    def _load_providers(self, config_path: str | Path) -> Dict[str, Any]:
         """Load provider configurations including API keys"""
         try:
             with open(config_path, 'r') as f:
@@ -154,80 +160,61 @@ class LLMHarness:
             models = list(self.config["models"].keys())
 
         logger.info("Starting run_probe")
-        logger.info(f"Loaded config: {self.config}")
-        logger.info(f"Loaded providers: {self.providers}")
+        logger.info(f"Models to test: {models}")
 
         results: Dict[str, ProbeResult] = {}
         for model_id in models:
             try:
                 logger.info(f"\nProcessing model: {model_id}")
 
-                model_config = self.config["models"][model_id]
+                # Get model config
+                model_config = self.config["models"].get(model_id)
+                if not model_config:
+                    raise ValueError(f"Model {model_id} not found in config")
                 logger.info(f"Model config: {model_config}")
 
+                # Get provider
                 provider = model_config["provider"]
-                logger.info(f"Provider: {provider}")
-
-                model_identifier = model_config["model_id"]
-                logger.info(f"Model identifier: {model_identifier}")
-
                 if not self.validate_provider(provider):
                     raise ValueError(f"Invalid or unconfigured provider: {provider}")
+                logger.info(f"Using provider: {provider}")
 
+                # Get provider config
                 provider_config = self.providers[provider]
-                logger.info(f"Provider config: {provider_config}")
+                api_key = provider_config.get("api_key")
+                if not api_key or api_key.startswith("default_"):
+                    raise ValueError(f"API key not configured for provider {provider}")
 
+                # Build model string
                 format_string = provider_config.get('format', '{model_id}')
-                logger.info(f"Format string: {format_string}")
+                model_identifier = model_config["model_id"]
+                full_model_string = format_string.format(model_id=model_identifier)
+                logger.info(f"Full model string: {full_model_string}")
 
-                try:
-                    full_model_string = format_string.format(model_id=model_identifier)
-                    logger.info(f"Built full model string: {full_model_string}")
-                except Exception as e:
-                    logger.error(f"Error formatting model string: {e}")
-                    raise
-
+                # Build completion params
                 completion_params = {
                     "model": full_model_string,
                     "messages": [{"role": "user", "content": prompt}],
-                    "api_key": provider_config["api_key"]
+                    "api_key": api_key
                 }
-                logger.info(f"Built completion params (excluding api_key): {dict(model=completion_params['model'])}")
+                logger.info(f"Completion params (excluding api_key): {dict(model=completion_params['model'])}")
 
+                # Make API call
                 try:
                     response = await litellm.acompletion(**completion_params)
                     logger.info("Got response from litellm")
-                except Exception as e:
-                    logger.error(f"Error in litellm call: {e}")
-                    raise
+                    content = self._extract_content(response)
+                    model_name = str(getattr(response, 'model', model_id))
 
-                # ... rest of the code
+                    results[model_id] = ProbeResult(
+                        response=content,
+                        model_name=model_name,
+                        timestamp=datetime.now().isoformat()
+                    )
+                except Exception as api_error:
+                    logger.error(f"API call error for {model_id}: {str(api_error)}")
+                    raise ValueError(f"API call failed: {str(api_error)}")
 
-
-                # Add default params unless null
-                for param, default_value in self.DEFAULT_PARAMS.items():
-                    if default_value is not None:
-                        completion_params[param] = default_value
-
-                # Override with any model-specific params
-                model_params = model_config.get('params', {})
-                for param, value in model_params.items():
-                    if value is not None:
-                        completion_params[param] = value
-                    elif param in completion_params:
-                        # If model explicitly sets param to null, remove it
-                        del completion_params[param]
-
-                response = await litellm.acompletion(**completion_params)
-
-                content = self._extract_content(response)
-                model_name = str(getattr(response, 'model', model_id))
-
-                results[model_id] = ProbeResult(
-                    response=content,
-                    model_name=model_name,
-                    timestamp=datetime.now().isoformat()
-                )
             except Exception as e:
                 logger.error(f"Error with {model_id}: {str(e)}")
                 results[model_id] = ProbeResult(

@@ -7,9 +7,8 @@ name = "llm-harness"
 version = "0.1.2"
 description = "A flexible harness for working with multiple LLM providers"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"                                                 # Since you're on Python 3.12
 license = "MIT"
-keywords = ["llm", "ai", "testing"]
 authors = [{ name = "Rob Kunkle", email = "rob.kunkle@gmail.com" }]
 
 dependencies = [
@@ -19,33 +18,6 @@ dependencies = [
     "rich>=13.7.0",
 ]
 
-[project.optional-dependencies]
-test = ["pytest>=7.0", "pytest-asyncio>=0.21.0"]
-dev = ["black>=23.0", "mypy>=1.0", "ruff>=0.1.0"]
-
-[tool.pytest.ini_options]
-asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "function"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::UserWarning",
-    "ignore::pytest.PytestCollectionWarning",
-]
-
 [tool.hatch.build.targets.wheel]
-packages = ["src/llm_harness"]
-include = ["src/llm_harness/config/*.yaml"]
-
-[tool.black]
-line-length = 100
-target-version = ["py39"]
-
-[tool.ruff]
-line-length = 100
-target-version = "py39"
-select = ["E", "F", "B", "I", "UP"]
-
-[tool.mypy]
-python_version = "3.9"
-strict = true
-ignore_missing_imports = true
+packages = ["."]            #  "." indicates project root, so easy
+include = ["config/*.yaml"]
