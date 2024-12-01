@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "llm-harness"
+name = "llmharness"
 version = "0.1.2"
 description = "A flexible harness for working with multiple LLM providers"
 readme = "README.md"

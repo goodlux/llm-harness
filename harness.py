@@ -12,10 +12,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Define the config directory relative to harness.py
-CONFIG_DIR = Path(__file__).parent.parent.parent / "config"
-
-
-
+CONFIG_DIR = Path(__file__).parent / "config"
 
 class ProbeResult(TypedDict):
     """Type definition for probe results"""
