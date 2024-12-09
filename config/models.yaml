@@ -6,8 +6,13 @@ models:
 
   "claude-sonnet":
     provider: "anthropic"
-    model_id: "claude-3-sonnet-20240229"
+    model_id: "claude-3-5-sonnet-20241022"
     description: "Claude 3 Sonnet model"
+
+  "claude-haiku":
+    provider: anthropic
+    model_id: "claude-3-5-haiku-20241022"
+    description: "Claude 3 Haiku model"
 
   "gpt-4":
     provider: "openai"
@@ -23,3 +28,64 @@ models:
     provider: "mistral"
     model_id: "mistral-large-2407"
     description: "Mistral's large model"
+
+  "mixtral-8x7b":
+    provider: "together"
+    model_id: "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO" # some models have tricky model ids
+    description: "Specific version of Mixtral"
+
+  # "claude-2":
+  #   provider: anthropic
+  #   model_id: "claude-2.1"
+  #   description: "Claude 2.1 model"
+
+  # "gpt-4":
+  #   provider: openai
+  #   model_id: "gpt-4"
+  #   description: "GPT-4"
+
+  # "gpt-3.5":
+  #   provider: openai
+  #   model_id: "gpt-3.5-turbo-1106"
+  #   description: "GPT-3.5 Turbo model"
+
+  # "o1-mini":
+  #   provider: openai
+  #   model_id: "o1-mini"
+  #   description: "O1 Mini model"
+
+  # "gemini-pro":
+  #   provider: google
+  #   model_id: "gemini/gemini-pro"
+  #   description: "Gemini Pro model"
+
+  # "mistral-medium":
+  #   provider: mistral
+  #   model_id: "mistral-medium"
+  #   description: "Mistral medium model"
+
+  "mixtral-8x22b":
+    provider: mistral
+    model_id: "open-mixtral-8x22b"
+    description: "Mixtral 8x22B model"
+
+  # "mistral-nemo":
+  #   provider: mistral
+  #   model_id: "open-mistral-nemo"
+  #   description: "Mistral Nemo model"
+
+  # "hermes-mixtral":
+
+  #   provider: together
+  #   model_id: "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"
+  #   description: "Hermes 2 on Mixtral architecture"
+
+  # "hermes-2":
+  #   provider: together
+  #   model_id: "hermes-2"
+  #   description: "Hermes 2 model"
+
+  # "tiny-llama":
+  #   provider: together
+  #   model_id: "tinyllama-1.1b-chat"
+  #   description: "Tiny Llama model"

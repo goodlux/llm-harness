@@ -7,17 +7,12 @@ name = "llmharness"
 version = "0.1.2"
 description = "A flexible harness for working with multiple LLM providers"
 readme = "README.md"
-requires-python = ">=3.12"                                                 # Since you're on Python 3.12
+requires-python = ">=3.11"                                                 # Since you're on Python 3.12
 license = "MIT"
 authors = [{ name = "Rob Kunkle", email = "rob.kunkle@gmail.com" }]
 
-dependencies = [
-    "litellm>=1.0.0",
-    "pyyaml>=6.0",
-    "python-dotenv>=1.0.0",
-    "rich>=13.7.0",
-]
+dependencies = ["litellm", "pyyaml", "python-dotenv>=1.0.0", "rich>=13.7.0"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["."]            #  "." indicates project root, so easy
-include = ["config/*.yaml"]
+[tool.setuptools.packages.find]
+where = ["."]                             #  "." indicates project root, so easy
+include = ["llmharness", "config/*.yaml"]

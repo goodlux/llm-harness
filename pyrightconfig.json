@@ -2,5 +2,7 @@
   "include": ["src", "tools"],
   "exclude": ["**/node_modules", "**/__pycache__"],
   "typeCheckingMode": "basic",
-  "useLibraryCodeForTypes": true
+  "useLibraryCodeForTypes": true,
+  "extraPaths": ["./"],
+  "pythonVersion": "3.11"
 }

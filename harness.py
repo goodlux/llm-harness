@@ -1,27 +1,19 @@
-from typing import List, Dict, Any, Optional, TypedDict, cast
+# llmharness/harness.py
 import litellm
+from typing import List, Dict, Any, Optional
+from litellm.utils import ModelResponse
 import yaml
-import os
-from datetime import datetime
-import json
-from litellm.utils import ModelResponse, StreamingChoices, Message
 import logging
-import asyncio
 from pathlib import Path
+
 
 logger = logging.getLogger(__name__)
 
 # Define the config directory relative to harness.py
 CONFIG_DIR = Path(__file__).parent / "config"
 
-class ProbeResult(TypedDict):
-    """Type definition for probe results"""
-    response: str
-    model_name: str
-    timestamp: str
-
 class LLMHarness:
-    """Harness for running probes across multiple LLM models"""
+    """Harness for interacting with LLM models through a unified interface"""
 
     # Default parameters for all models unless overridden
     DEFAULT_PARAMS = {
@@ -70,16 +62,85 @@ class LLMHarness:
     }
 
     def __init__(self):
-        """Initialize harness with model and provider configurations"""
         self.config = self._load_config(CONFIG_DIR / "models.yaml")
         self.providers = self._load_providers(CONFIG_DIR / "providers.yaml")
+
+    async def complete(
+        self,
+        model: str,
+        prompt: str | List[Dict[str, str]],
+        **params: Any
+    ) -> ModelResponse:
+        """
+        Send a completion request to a specific model.
+
+        Args:
+            model: Model identifier from config
+            prompt: Either a string for one-shot completion or list of messages for chat
+            **params: Additional parameters to pass to the model (overrides defaults)
+
+        Returns:
+            ModelResponse from litellm
+
+        Raises:
+            ValueError: If model or provider configuration is invalid
+            Exception: For API call errors
+        """
+        # Get model config
+        model_config = self.config["models"].get(model)
+        if not model_config:
+            raise ValueError(f"Model {model} not found in config")
+
+        # Get provider
+        provider = model_config["provider"]
+        if not self.validate_provider(provider):
+            raise ValueError(f"Invalid or unconfigured provider: {provider}")
+
+        # Get provider config and API key
+        provider_config = self.providers[provider]
+        api_key = provider_config.get("api_key")
+        if not api_key or api_key.startswith("default_"):
+            raise ValueError(f"API key not configured for provider {provider}")
+
+        # Build model string
+        format_string = provider_config.get('format', '{model_id}')
+        model_identifier = model_config["model_id"]
+        full_model_string = format_string.format(model_id=model_identifier)
+
+        # Prepare messages
+        if isinstance(prompt, str):
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = prompt
+
+        # Build completion params with proper precedence
+        completion_params = {
+            # Start with default parameters
+            **{k: v for k, v in self.DEFAULT_PARAMS.items() if v is not None},
+            # Add model-specific parameters from config
+            **(model_config.get("parameters", {})),
+            # Add core required parameters
+            "model": full_model_string,
+            "messages": messages,
+            "api_key": api_key,
+            # User-provided parameters override everything
+            **params
+        }
+
+        # Make API call
+        try:
+            response = await litellm.acompletion(**completion_params)
+            return response
+        except Exception as e:
+            logger.error(f"API call error for {model}: {str(e)}")
+            raise
 
     def _load_config(self, config_path: str | Path) -> Dict[str, Any]:
         """Load model configurations from YAML file"""
         try:
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
-                return cast(Dict[str, Any], config) if isinstance(config, dict) else {"models": {}}
+                return config if isinstance(config, dict) else {"models": {}}
         except FileNotFoundError:
             logger.error(f"Model config file not found: {config_path}")
             return {"models": {}}
@@ -101,123 +162,3 @@ class LLMHarness:
             logger.info(f"Valid providers are: {list(self.providers.keys())}")
             return False
         return True
-
-    @staticmethod
-    def _extract_content(response: Any) -> str:
-        """Safely extract content from various response types"""
-        try:
-            # Handle litellm response
-            if isinstance(response, ModelResponse):
-                if not response.choices or len(response.choices) == 0:
-                    return ""
-
-                choice = response.choices[0]
-                # Handle different choice types
-                if isinstance(choice, dict):
-                    message_dict = cast(Dict[str, Any], choice.get('message', {}))
-                    return str(message_dict.get('content', ''))
-
-                # Handle streaming response
-                if hasattr(choice, 'delta'):
-                    delta = getattr(choice, 'delta')
-                    return str(getattr(delta, 'content', ''))
-
-                # Handle standard response
-                if hasattr(choice, 'message'):
-                    msg = getattr(choice, 'message')
-                    return str(getattr(msg, 'content', ''))
-
-                return str(choice)
-
-            # Handle dict-like responses
-            if isinstance(response, dict):
-                if 'choices' in response:
-                    choice = response['choices'][0]
-                    if isinstance(choice, dict) and 'message' in choice:
-                        return str(choice['message'].get('content', ''))
-
-            # Handle object-style responses
-            if hasattr(response, 'choices'):
-                choices = getattr(response, 'choices')
-                if choices and len(choices) > 0:
-                    choice = choices[0]
-                    if hasattr(choice, 'message'):
-                        msg = getattr(choice, 'message')
-                        if hasattr(msg, 'content'):
-                            return str(msg.content)
-
-            # Fallback: try to convert response to string
-            return str(response)
-        except Exception as e:
-            return f"Error extracting content: {str(e)}"
-
-    async def run_probe(self, prompt: str, models: Optional[List[str]] = None) -> Dict[str, ProbeResult]:
-        """Run a semantic probe across specified models"""
-        if models is None:
-            models = list(self.config["models"].keys())
-
-        logger.info("Starting run_probe")
-        logger.info(f"Models to test: {models}")
-
-        results: Dict[str, ProbeResult] = {}
-        for model_id in models:
-            try:
-                logger.info(f"\nProcessing model: {model_id}")
-
-                # Get model config
-                model_config = self.config["models"].get(model_id)
-                if not model_config:
-                    raise ValueError(f"Model {model_id} not found in config")
-                logger.info(f"Model config: {model_config}")
-
-                # Get provider
-                provider = model_config["provider"]
-                if not self.validate_provider(provider):
-                    raise ValueError(f"Invalid or unconfigured provider: {provider}")
-                logger.info(f"Using provider: {provider}")
-
-                # Get provider config
-                provider_config = self.providers[provider]
-                api_key = provider_config.get("api_key")
-                if not api_key or api_key.startswith("default_"):
-                    raise ValueError(f"API key not configured for provider {provider}")
-
-                # Build model string
-                format_string = provider_config.get('format', '{model_id}')
-                model_identifier = model_config["model_id"]
-                full_model_string = format_string.format(model_id=model_identifier)
-                logger.info(f"Full model string: {full_model_string}")
-
-                # Build completion params
-                completion_params = {
-                    "model": full_model_string,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "api_key": api_key
-                }
-                logger.info(f"Completion params (excluding api_key): {dict(model=completion_params['model'])}")
-
-                # Make API call
-                try:
-                    response = await litellm.acompletion(**completion_params)
-                    logger.info("Got response from litellm")
-                    content = self._extract_content(response)
-                    model_name = str(getattr(response, 'model', model_id))
-
-                    results[model_id] = ProbeResult(
-                        response=content,
-                        model_name=model_name,
-                        timestamp=datetime.now().isoformat()
-                    )
-                except Exception as api_error:
-                    logger.error(f"API call error for {model_id}: {str(api_error)}")
-                    raise ValueError(f"API call failed: {str(api_error)}")
-
-            except Exception as e:
-                logger.error(f"Error with {model_id}: {str(e)}")
-                results[model_id] = ProbeResult(
-                    response=f"Error: {str(e)}",
-                    model_name=model_id,
-                    timestamp=datetime.now().isoformat()
-                )
-
-        return results

@@ -1,4 +1,4 @@
-from .harness import LLMHarness, ProbeResult
+from .harness import LLMHarness
+from .llm_model import LLMModel
 
-# Make these available when importing llm_harness
-__all__ = ['LLMHarness', 'ProbeResult']
+__all__ = ['LLMHarness', 'LLMModel']
